@@ -15,7 +15,8 @@ import { useToast } from "@/components/ui/use-toast"
 import StreamingAvatarComponent from "@/components/streaming-avatar"
 
 export default function ChatPage() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat()
+  const { messages, input, handleInputChange, handleSubmit, isLoading, lastCompletedAssistantMessage } = useChat()
+
   const [testingOpenAI, setTestingOpenAI] = useState(false)
   const { toast } = useToast()
   const avatarRef = useRef<any>(null)
@@ -53,12 +54,16 @@ export default function ChatPage() {
 
   // Automatically speak the last assistant message when it changes
   useEffect(() => {
-    const lastAssistantMessage = messages.filter(m => m.role === "assistant").pop()
-    if (avatarRef.current && lastAssistantMessage?.content && !isAvatarLoading && hasUserInteracted) {
+    if (
+      avatarRef.current &&
+      lastCompletedAssistantMessage?.content &&
+      !isAvatarLoading &&
+      hasUserInteracted
+    ) {
       const speakMessage = async () => {
         setIsAvatarSpeaking(true)
         try {
-          await avatarRef.current.speak(lastAssistantMessage.content)
+          await avatarRef.current.speak(lastCompletedAssistantMessage.content)
         } catch (error) {
           console.error("Failed to speak message:", error)
         } finally {
@@ -67,7 +72,8 @@ export default function ChatPage() {
       }
       speakMessage()
     }
-  }, [messages, isAvatarLoading, hasUserInteracted])
+  }, [lastCompletedAssistantMessage, isAvatarLoading, hasUserInteracted])
+  
 
   const handleUserInteraction = () => {
     if (!hasUserInteracted) {
