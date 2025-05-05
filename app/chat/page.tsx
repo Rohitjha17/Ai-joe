@@ -4,36 +4,14 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Slider } from "@/components/ui/slider"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { useChat } from "@/hooks/use-chat"
 import ChatMessage from "@/components/chat-message"
 import {
   Send,
-  Settings,
   Loader2,
   Mic,
-  MicOff,
-  Sun,
-  Moon,
 } from "lucide-react"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
-import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
-import { useTheme } from "next-themes"
 import StreamingAvatarComponent from "@/components/streaming-avatar"
 
 export default function ChatPage() {
@@ -42,56 +20,66 @@ export default function ChatPage() {
   const { toast } = useToast()
   const avatarRef = useRef<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { theme, setTheme } = useTheme()
   const [isListening, setIsListening] = useState(false)
+  const [isAvatarLoading, setIsAvatarLoading] = useState(true)
+  const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false)
+  const [hasUserInteracted, setHasUserInteracted] = useState(false)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  // Initialize avatar when component mounts and user has interacted
+  useEffect(() => {
+    const initAvatar = async () => {
+      if (avatarRef.current && hasUserInteracted) {
+        setIsAvatarLoading(true)
+        try {
+          await avatarRef.current.initialize()
+        } catch (error) {
+          console.error("Failed to initialize avatar:", error)
+          toast({
+            title: "Avatar Error",
+            description: "Failed to initialize the avatar. Please refresh the page.",
+            variant: "destructive",
+          })
+        } finally {
+          setIsAvatarLoading(false)
+        }
+      }
+    }
+    initAvatar()
+  }, [toast, hasUserInteracted])
+
+  // Automatically speak the last assistant message when it changes
+  useEffect(() => {
+    const lastAssistantMessage = messages.filter(m => m.role === "assistant").pop()
+    if (avatarRef.current && lastAssistantMessage?.content && !isAvatarLoading && hasUserInteracted) {
+      const speakMessage = async () => {
+        setIsAvatarSpeaking(true)
+        try {
+          await avatarRef.current.speak(lastAssistantMessage.content)
+        } catch (error) {
+          console.error("Failed to speak message:", error)
+        } finally {
+          setIsAvatarSpeaking(false)
+        }
+      }
+      speakMessage()
+    }
+  }, [messages, isAvatarLoading, hasUserInteracted])
+
+  const handleUserInteraction = () => {
+    if (!hasUserInteracted) {
+      setHasUserInteracted(true)
+    }
+  }
+
   const handleSendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
+    handleUserInteraction()
     e.preventDefault()
     const metadata = {  }
     await handleSubmit(e, metadata)
-  }
-
-  // New: Speak last assistant message using avatar
-  const handleSpeak = async () => {
-    const lastAssistantMessage = messages.filter(m => m.role === "assistant").pop()
-    if (avatarRef.current && lastAssistantMessage?.content) {
-      await avatarRef.current.speak(lastAssistantMessage.content)
-    }
-  }
-
-  // New: Start avatar stream
-  const handleStartAvatar = async () => {
-    if (avatarRef.current) {
-      await avatarRef.current.initialize()
-    }
-  }
-
-  const handleTestOpenAIAPI = async () => {
-    setTestingOpenAI(true)
-    try {
-      const response = await fetch("/api/test-connections?type=openai")
-      const data = await response.json()
-      if (data.openai?.success) {
-        toast({
-          title: "OpenAI API Test Successful",
-          description: `OpenAI API is working. Assistant: ${data.openai.assistant.name} (${data.openai.assistant.model})`,
-        })
-      } else {
-        throw new Error(data.openai?.error || "Unknown error occurred")
-      }
-    } catch (error: any) {
-      toast({
-        title: "OpenAI API Test Failed",
-        description: error.message || "Unknown error occurred",
-        variant: "destructive",
-      })
-    } finally {
-      setTestingOpenAI(false)
-    }
   }
 
   // Speech-to-text logic
@@ -118,9 +106,9 @@ export default function ChatPage() {
   const stopListening = () => setIsListening(false)
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-background text-foreground">
+    <div className="flex flex-col h-screen w-screen bg-white text-black overflow-hidden">
       {/* Navigation Bar */}
-      <nav className="w-full flex items-center justify-between px-4 py-2 sm:px-8 sm:py-4 border-b border-gray-300 dark:border-gray-700 bg-background">
+      <nav className="w-full flex items-center justify-between px-4 py-2 sm:px-8 sm:py-4 border-b border-gray-300 bg-black text-white">
         <div className="flex items-center">
           <img
             src="/dark.webp"
@@ -129,50 +117,48 @@ export default function ChatPage() {
             style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.08))' }}
           />
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="text-foreground bg-muted"
-        >
-          {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </Button>
       </nav>
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Left Panel - Avatar Only */}
-        <div className="w-full md:w-3/4 flex items-center justify-center bg-background h-48 sm:h-64 md:h-full min-h-[180px] max-h-[400px] md:max-h-none">
+        <div className="w-full md:w-3/4 flex items-center justify-center bg-white h-48 sm:h-64 md:h-full min-h-[180px] max-h-[400px] md:max-h-none relative">
+          {!hasUserInteracted ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+              <div className="flex flex-col items-center gap-4">
+                <p className="text-sm text-center px-4 text-black">Click anywhere to start the avatar</p>
+                <Button
+                  onClick={handleUserInteraction}
+                  className="bg-black text-white hover:bg-gray-800"
+                >
+                  Start Avatar
+                </Button>
+              </div>
+            </div>
+          ) : isAvatarLoading ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-black" />
+                <span className="text-sm text-black">Loading avatar...</span>
+              </div>
+            </div>
+          ) : null}
+          {isAvatarSpeaking && (
+            <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2">
+              <span className="animate-pulse">●</span>
+              Speaking
+            </div>
+          )}
           <StreamingAvatarComponent ref={avatarRef} />
         </div>
         {/* Right Panel - Chat UI */}
-        <div className="w-full md:w-1/2 flex flex-col p-2 sm:p-4 overflow-hidden bg-background text-foreground h-full">
-          <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-2">
-            {/* Outstanding controls for avatar */}
-            <div className="flex gap-2 w-full justify-end">
-              <Button
-                type="button"
-                onClick={handleStartAvatar}
-                className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 transition"
-              >
-                Start Avatar
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSpeak}
-                className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition"
-                disabled={messages.filter(m => m.role === "assistant").length === 0}
-              >
-                Speak Response
-              </Button>
-            </div>
-          </div>
-          <Card className="flex-1 overflow-hidden flex flex-col border border-gray-300 dark:border-gray-700 bg-background text-foreground">
+        <div className="w-full md:w-1/2 flex flex-col p-2 sm:p-4 overflow-hidden bg-white text-black h-full">
+          <Card className="flex-1 overflow-hidden flex flex-col border border-gray-200 bg-white text-black">
             <CardContent className="flex-1 overflow-y-auto p-2 space-y-4">
               {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-center px-4">
                   <div className="max-w-sm space-y-2">
-                    <h3 className="text-sm font-medium">Welcome to Joe AI</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Start chatting with your assistant powered by your custom knowledge base.
+                    <h3 className="text-sm font-medium text-black">Welcome to Joe 2.0</h3>
+                    <p className="text-xs text-gray-600">
+                      Experience the next generation of AI interaction. I'm here to assist you with intelligent conversations, powered by advanced language models and real-time avatar technology.
                     </p>
                   </div>
                 </div>
@@ -185,20 +171,23 @@ export default function ChatPage() {
                 </>
               )}
             </CardContent>
-            <div className="p-2 border-t border-gray-300 dark:border-gray-700 bg-background">
+            <div className="p-2 border-t border-gray-200 bg-white">
               <form onSubmit={handleSendMessage} className="flex items-center gap-2 w-full">
                 <Input
                   value={input}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    handleUserInteraction()
+                    handleInputChange(e)
+                  }}
                   placeholder="Type your message..."
                   disabled={isLoading}
-                  className="flex-1 text-xs text-foreground border border-gray-300 dark:border-gray-700 placeholder-muted-foreground bg-background"
+                  className="flex-1 text-xs text-black border border-gray-200 placeholder-gray-400 bg-white"
                 />
                 <Button
                   type="submit"
                   disabled={isLoading || !input.trim()}
                   size="sm"
-                  className="text-background bg-foreground"
+                  className="text-white bg-black hover:bg-gray-800"
                 >
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
@@ -206,8 +195,11 @@ export default function ChatPage() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={isListening ? stopListening : startListening}
-                  className="text-foreground bg-muted"
+                  onClick={(e) => {
+                    handleUserInteraction()
+                    isListening ? stopListening() : startListening()
+                  }}
+                  className="text-black hover:bg-gray-100"
                   title={isListening ? "Stop voice typing" : "Start voice typing"}
                 >
                   <Mic className={`h-5 w-5 ${isListening ? 'animate-pulse text-green-500' : ''}`} />
