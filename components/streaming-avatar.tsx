@@ -49,12 +49,27 @@ const StreamingAvatarComponent = forwardRef((props, ref) => {
 
   return (
     <div className="space-y-4 w-full px-2">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        className="rounded-xl border shadow-md w-full h-[400px] bg-black"
-      />
+      <div className="relative w-full rounded-xl border shadow-md overflow-hidden bg-gradient-to-b from-gray-100 to-gray-300 flex items-center justify-center"
+        style={{ minHeight: '180px', height: '40vw', maxHeight: 400 }}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover rounded-xl transition-opacity duration-300 bg-transparent"
+          style={{ zIndex: 2, background: 'transparent' }}
+        />
+        {/* Placeholder overlay if video is not loaded */}
+        {!videoRef.current || !videoRef.current.srcObject ? (
+          <div className="flex flex-col items-center justify-center w-full h-full z-1">
+            <div className="rounded-full bg-gray-300 flex items-center justify-center" style={{ width: 72, height: 72 }}>
+              <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-gray-500">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 7v-6m0 0l-7-4m7 4l7-4" />
+              </svg>
+            </div>
+            <span className="mt-2 text-gray-500 text-xs">Avatar will appear here</span>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 });

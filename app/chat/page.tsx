@@ -106,109 +106,86 @@ export default function ChatPage() {
   const stopListening = () => setIsListening(false)
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-white text-black overflow-hidden">
-      {/* Navigation Bar */}
-      <nav className="w-full flex items-center justify-between px-4 py-2 sm:px-8 sm:py-4 border-b border-gray-300 bg-black text-white">
-        <div className="flex items-center">
+    <div className="flex flex-col min-h-screen w-full bg-white text-black overflow-x-hidden">
+      {/* Header: Single logo, slim, left-aligned, tagline below */}
+      <header className="w-full border-b border-gray-200 bg-black text-white px-4 py-4 flex flex-col items-start justify-center shadow-sm">
+        <div className="flex items-center gap-2">
           <img
             src="/dark.webp"
-            alt="Logo"
-            className="h-8 w-auto sm:h-10 max-w-[120px] object-contain mr-2"
+            alt="EOXS Logo"
+            className="h-10 w-auto max-w-[140px] object-contain"
             style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.08))' }}
           />
         </div>
-      </nav>
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        {/* Left Panel - Avatar Only */}
-        <div className="w-full md:w-3/4 flex items-center justify-center bg-white h-48 sm:h-64 md:h-full min-h-[180px] max-h-[400px] md:max-h-none relative">
-          {!hasUserInteracted ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-              <div className="flex flex-col items-center gap-4">
-                <p className="text-sm text-center px-4 text-black">Click anywhere to start the avatar</p>
-                <Button
-                  onClick={handleUserInteraction}
-                  className="bg-black text-white hover:bg-gray-800"
-                >
-                  Start Avatar
-                </Button>
-              </div>
+      </header>
+      <main className="flex-1 flex flex-col items-center justify-center bg-white px-1 py-2 w-full">
+        <div className="flex flex-col md:flex-row w-full md:w-[90vw] max-w-[1600px] h-full md:h-[calc(100vh-70px)] items-center justify-center md:justify-between gap-2 md:gap-6 transition-all duration-300">
+          {/* Avatar Area */}
+          <div className="w-full md:w-1/2 flex flex-col items-center justify-center h-[320px] md:h-[650px]">
+            <div className="w-full h-full max-w-full flex items-center justify-center">
+              <StreamingAvatarComponent ref={avatarRef} />
             </div>
-          ) : isAvatarLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-black" />
-                <span className="text-sm text-black">Loading avatar...</span>
-              </div>
-            </div>
-          ) : null}
-          {isAvatarSpeaking && (
-            <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2">
-              <span className="animate-pulse">●</span>
-              Speaking
-            </div>
-          )}
-          <StreamingAvatarComponent ref={avatarRef} />
-        </div>
-        {/* Right Panel - Chat UI */}
-        <div className="w-full md:w-1/2 flex flex-col p-2 sm:p-4 overflow-hidden bg-white text-black h-full">
-          <Card className="flex-1 overflow-hidden flex flex-col border border-gray-200 bg-white text-black">
-            <CardContent className="flex-1 overflow-y-auto p-2 space-y-4">
-              {messages.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-center px-4">
-                  <div className="max-w-sm space-y-2">
-                    <h3 className="text-sm font-medium text-black">Welcome to Joe 2.0</h3>
-                    <p className="text-xs text-gray-600">
-                      Experience the next generation of AI interaction. I'm here to assist you with intelligent conversations, powered by advanced language models and real-time avatar technology.
+          </div>
+          {/* Chat Area */}
+          <div className="w-full md:w-1/2 flex flex-col items-center justify-center h-[400px] md:h-[80%]">
+            <Card className="w-full h-full rounded-2xl border border-gray-200 bg-white text-black shadow-lg flex flex-col justify-between">
+              <CardContent className="flex-1 flex flex-col justify-center p-6 md:p-10">
+                {messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center w-full h-full">
+                    <h3 className="text-3xl font-extrabold text-black mb-4">Welcome to Joe 2.0</h3>
+                    <p className="text-lg text-gray-600 mb-2">
+                      Experience the next generation of AI interaction.
                     </p>
                   </div>
-                </div>
-              ) : (
-                <>
-                  {messages.map((message) => (
-                    <ChatMessage key={message.id} message={message} />
-                  ))}
-                  <div ref={messagesEndRef} />
-                </>
-              )}
-            </CardContent>
-            <div className="p-2 border-t border-gray-200 bg-white">
-              <form onSubmit={handleSendMessage} className="flex items-center gap-2 w-full">
-                <Input
-                  value={input}
-                  onChange={(e) => {
-                    handleUserInteraction()
-                    handleInputChange(e)
-                  }}
-                  placeholder="Type your message..."
-                  disabled={isLoading}
-                  className="flex-1 text-xs text-black border border-gray-200 placeholder-gray-400 bg-white"
-                />
-                <Button
-                  type="submit"
-                  disabled={isLoading || !input.trim()}
-                  size="sm"
-                  className="text-white bg-black hover:bg-gray-800"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => {
-                    handleUserInteraction()
-                    isListening ? stopListening() : startListening()
-                  }}
-                  className="text-black hover:bg-gray-100"
-                  title={isListening ? "Stop voice typing" : "Start voice typing"}
-                >
-                  <Mic className={`h-5 w-5 ${isListening ? 'animate-pulse text-green-500' : ''}`} />
-                </Button>
-              </form>
-            </div>
-          </Card>
+                ) : (
+                  <>
+                    {messages.map((message) => (
+                      <ChatMessage key={message.id} message={message} />
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </>
+                )}
+              </CardContent>
+              {/* Input always visible, sticky on mobile */}
+              <div className="p-4 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                <form onSubmit={handleSendMessage} className="flex items-center gap-3 w-full">
+                  <Input
+                    value={input}
+                    onChange={(e) => {
+                      handleUserInteraction()
+                      handleInputChange(e)
+                    }}
+                    placeholder="Type your message..."
+                    disabled={isLoading}
+                    className="flex-1 text-lg md:text-xl text-black border border-gray-200 placeholder-gray-400 bg-white rounded-full px-5 py-3 shadow-md"
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isLoading || !input.trim()}
+                    size="lg"
+                    className="text-white bg-black hover:bg-gray-800 rounded-full px-5 py-3 shadow-md"
+                  >
+                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      handleUserInteraction()
+                      isListening ? stopListening() : startListening()
+                    }}
+                    className="text-black hover:bg-gray-100 rounded-full"
+                    title={isListening ? "Stop voice typing" : "Start voice typing"}
+                  >
+                    <Mic className={`h-6 w-6 ${isListening ? 'animate-pulse text-green-500' : ''}`} />
+                  </Button>
+                </form>
+              </div>
+            </Card>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
