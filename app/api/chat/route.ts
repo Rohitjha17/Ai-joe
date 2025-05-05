@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Generate the response using our chat actions
-    const response = await generateChatResponse(messages, vectorRatio, summaryLength)
+    const response = await generateChatResponse(messages)
 
     // Create a streaming response
     const encoder = new TextEncoder()

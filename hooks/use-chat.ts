@@ -10,6 +10,7 @@ export function useChat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [lastCompletedAssistantMessage, setLastCompletedAssistantMessage] = useState<Message | null>(null)
   const { toast } = useToast()
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,31 +29,28 @@ export function useChat() {
         content: input,
       }
 
-      setMessages((prev) => [...prev, userMessage])
+      const assistantMessageId = uuidv4()
+      const newMessages = [...messages, userMessage]
+
+      // Update messages UI immediately
+      setMessages([...newMessages, {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+      }])
+
       setInput("")
       setIsLoading(true)
 
-      // Create a new assistant message placeholder
-      const assistantMessageId = uuidv4()
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: assistantMessageId,
-          role: "assistant",
-          content: "",
-        },
-      ])
-
       try {
-        // Use the API route to generate a response
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            messages: [...messages, userMessage],
-            vectorRatio: metadata?.vectorRatio ,
+            messages: newMessages,
+            vectorRatio: metadata?.vectorRatio,
             summaryLength: metadata?.summaryLength || "none",
           }),
         })
@@ -62,37 +60,40 @@ export function useChat() {
           throw new Error(errorData.details || errorData.error || `Error: ${response.status}`)
         }
 
-        // Handle streaming response
         const reader = response.body?.getReader()
-        if (!reader) {
-          throw new Error("No reader available")
-        }
+        if (!reader) throw new Error("No reader available")
 
         let accumulatedText = ""
         const decoder = new TextDecoder()
 
         while (true) {
           const { done, value } = await reader.read()
-          if (done) break
+          if (done) {
+            // Finalize the full assistant message for speaking
+            setLastCompletedAssistantMessage({
+              id: assistantMessageId,
+              role: "assistant",
+              content: accumulatedText,
+            })
+            break
+          }
 
-          // Convert the chunk to text
           const chunk = decoder.decode(value, { stream: true })
           accumulatedText += chunk
 
-          // Update the assistant message with the accumulated text
+          // Update UI with the streamed chunk
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMessageId ? { ...m, content: accumulatedText } : m
             )
           )
         }
+
       } catch (error: any) {
         console.error("Error sending message:", error)
 
-        // Remove the empty assistant message
         setMessages((prev) => prev.filter((m) => m.id !== assistantMessageId))
 
-        // Add an error message from the assistant
         setMessages((prev) => [
           ...prev,
           {
@@ -111,7 +112,7 @@ export function useChat() {
         setIsLoading(false)
       }
     },
-    [input, messages, toast],
+    [input, messages, toast]
   )
 
   return {
@@ -120,5 +121,6 @@ export function useChat() {
     handleInputChange,
     handleSubmit,
     isLoading,
+    lastCompletedAssistantMessage, // <-- Exposed for use in ChatPage.tsx
   }
 }
