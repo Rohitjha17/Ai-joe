@@ -1,70 +1,72 @@
-"use client"
+"use client";
 
-import { cn } from "@/lib/utils"
-import type { Message } from "ai"
-import { User, Bot, Loader2 } from "lucide-react"
-import { useEffect, useState } from "react"
-import { useTheme } from "next-themes"
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils";
+import type { Message } from "ai";
+import { User, Bot, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
 
 interface ChatMessageProps {
-  message: Message
-  onVoiceInput?: (text: string) => void
+  message: Message;
+  onVoiceInput?: (text: string) => void;
 }
 
 export default function ChatMessage({ message, onVoiceInput }: ChatMessageProps) {
-  const [isStreaming, setIsStreaming] = useState(message.role === "assistant" && message.content === "")
-  const [isListening, setIsListening] = useState(false)
-  const { theme, setTheme } = useTheme()
+  const [isStreaming, setIsStreaming] = useState(
+    message.role === "assistant" && message.content === ""
+  );
+  const [isListening, setIsListening] = useState(false);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (message.role === "assistant") {
-      setIsStreaming(message.content === "")
+      setIsStreaming(message.content === "");
     }
-  }, [message.content, message.role])
+  }, [message.content, message.role]);
 
-  const isUser = message.role === "user"
+  const isUser = message.role === "user";
 
   const startListening = async () => {
-    if (!('webkitSpeechRecognition' in window)) {
-      alert('Speech recognition is not supported in this browser.')
-      return
+    if (!("webkitSpeechRecognition" in window)) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
     }
 
-    const recognition = new (window as any).webkitSpeechRecognition()
-    recognition.continuous = true
-    recognition.interimResults = true
+    const recognition = new (window as any).webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
     recognition.onstart = () => {
-      setIsListening(true)
-    }
+      setIsListening(true);
+    };
 
     recognition.onresult = (event: any) => {
       const transcript = Array.from(event.results)
         .map((result: any) => result[0])
         .map((result: any) => result.transcript)
-        .join('')
+        .join("");
 
       if (onVoiceInput) {
-        onVoiceInput(transcript)
+        onVoiceInput(transcript);
       }
-    }
+    };
 
     recognition.onerror = (event: any) => {
-      console.error('Speech recognition error', event.error)
-      setIsListening(false)
-    }
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+    };
 
     recognition.onend = () => {
-      setIsListening(false)
-    }
+      setIsListening(false);
+    };
 
-    recognition.start()
-  }
+    recognition.start();
+  };
 
   const stopListening = () => {
-    setIsListening(false)
-  }
+    setIsListening(false);
+  };
 
   return (
     <div className="relative">
@@ -76,25 +78,32 @@ export default function ChatMessage({ message, onVoiceInput }: ChatMessageProps)
             : "bg-muted text-foreground"
         )}
       >
-        <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center flex-shrink-0">
+       <div className="w-8 h-8 rounded-full overflow-hidden bg-background flex items-center justify-center flex-shrink-0">
           {isUser ? (
             <User className="h-5 w-5" />
           ) : (
-            <Bot className="h-5 w-5" />
+            <img
+              src="/pic.png" 
+              alt="Joseph Malchar"
+              className="w-full h-full object-cover"
+            />
           )}
         </div>
+
 
         <div className="flex-1">
           <div className="font-medium mb-1">
             {isUser ? "You" : "Joseph Malchar"}
           </div>
 
-          <div className="text-sm">
+          <div className="text-sm whitespace-pre-wrap">
             {isStreaming ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Generating response...</span>
               </div>
+            ) : message.content === "Cancelled." ? (
+              <span className="text-red-500">Response cancelled by User.</span>
             ) : (
               message.content
             )}
@@ -102,5 +111,5 @@ export default function ChatMessage({ message, onVoiceInput }: ChatMessageProps)
         </div>
       </div>
     </div>
-  )
+  );
 }

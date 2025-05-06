@@ -9,6 +9,8 @@ import { v4 as uuidv4 } from "uuid"
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
+  const [controller, setController] = useState<AbortController | null>(null)
+
   const [isLoading, setIsLoading] = useState(false)
   const [lastCompletedAssistantMessage, setLastCompletedAssistantMessage] = useState<Message | null>(null)
   const { toast } = useToast()
@@ -32,7 +34,6 @@ export function useChat() {
       const assistantMessageId = uuidv4()
       const newMessages = [...messages, userMessage]
 
-      // Update messages UI immediately
       setMessages([...newMessages, {
         id: assistantMessageId,
         role: "assistant",
@@ -41,6 +42,9 @@ export function useChat() {
 
       setInput("")
       setIsLoading(true)
+
+      const abortController = new AbortController()
+      setController(abortController)
 
       try {
         const response = await fetch("/api/chat", {
@@ -53,6 +57,7 @@ export function useChat() {
             vectorRatio: metadata?.vectorRatio,
             summaryLength: metadata?.summaryLength || "none",
           }),
+          signal: abortController.signal,
         })
 
         if (!response.ok) {
@@ -69,7 +74,6 @@ export function useChat() {
         while (true) {
           const { done, value } = await reader.read()
           if (done) {
-            // Finalize the full assistant message for speaking
             setLastCompletedAssistantMessage({
               id: assistantMessageId,
               role: "assistant",
@@ -81,46 +85,67 @@ export function useChat() {
           const chunk = decoder.decode(value, { stream: true })
           accumulatedText += chunk
 
-          // Update UI with the streamed chunk
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMessageId ? { ...m, content: accumulatedText } : m
             )
           )
         }
-
-      } catch (error: any) {
-        console.error("Error sending message:", error)
-
-        setMessages((prev) => prev.filter((m) => m.id !== assistantMessageId))
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: uuidv4(),
-            role: "assistant",
-            content: "I'm sorry, I encountered an error while processing your request. Please try again later.",
-          },
-        ])
-
-        toast({
-          title: "Error",
-          description: error.message || "Failed to send message. Please try again.",
-          variant: "destructive",
-        })
-      } finally {
+      }catch (error: any) {
+        if (error.name === "AbortError") {
+          console.log("Fetch aborted")
+      
+          // ❗Update the assistant's empty message with "Cancelled"
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId ? { ...m, content: "Cancelled." } : m
+            )
+          )
+        } else {
+          console.error("Error sending message:", error)
+      
+          // Remove placeholder and show error
+          setMessages((prev) => prev.filter((m) => m.id !== assistantMessageId))
+      
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: uuidv4(),
+              role: "assistant",
+              content: "I'm sorry, I encountered an error while processing your request. Please try again later.",
+            },
+          ])
+      
+          toast({
+            title: "Error",
+            description: error.message || "Failed to send message. Please try again.",
+            variant: "destructive",
+          })
+        }
+      }
+       finally {
+        setController(null)
         setIsLoading(false)
       }
     },
     [input, messages, toast]
   )
 
+  const handleStop = useCallback(() => {
+    if (controller) {
+      controller.abort()
+      setController(null)
+      setIsLoading(false)
+    }
+  }, [controller])
+
   return {
     messages,
     input,
     handleInputChange,
     handleSubmit,
+    handleStop,
     isLoading,
-    lastCompletedAssistantMessage, // <-- Exposed for use in ChatPage.tsx
+    lastCompletedAssistantMessage,
   }
 }
