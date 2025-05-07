@@ -46,7 +46,11 @@ export default function ChatPage() {
     if (messagesEndRef.current && chatContainerRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
+<<<<<<< Updated upstream
   }, [messages]);
+=======
+  }, [lastCompletedAssistantMessage, isAvatarLoading, hasUserInteracted])
+>>>>>>> Stashed changes
 
   const toggleConversation = () => setShowConversation(!showConversation);
 
